@@ -22,9 +22,9 @@ onAuthStateChanged(auth, (user) => {
   //Autentikasi User
   if (user) {
     const db = getFirestore(app);
-
+    var userId = user.uid;
     // Playground doang ini mah
-    function playGround() {}
+    async function playGround() {}
 
     playGround();
 
@@ -127,15 +127,13 @@ onAuthStateChanged(auth, (user) => {
       var tag = getTag();
       console.log(`nomor ${nomor} disimpan Di Database `);
       var link = `http://wa.me/${[nomor]}` + `/?text=${MyApp.script}${tag}`;
-      window.location = link;
-      //   console.log(link);
-      var userId = user.uid;
+      //   window.location = link;
+      console.log(link);
+
       try {
         const docRef = await addDoc(collection(db, "kontak"), {
           nomor: nomor,
-          dateSend: getDateToday(),
-          messageSentBy: userId,
-          product: MyApp.produk,
+
           Aktif: false,
         });
         console.log("Document written with ID: ", docRef.id);
@@ -147,24 +145,22 @@ onAuthStateChanged(auth, (user) => {
       MyApp.nomor = nomor;
     }
 
-    // mengganti status nomor aktif : true
     var count = 1;
     const idCount = document.getElementById("count");
     idCount.addEventListener("click", gantiAktif);
     function gantiAktif() {
-      const kontakRef = doc(db, "kontak", MyApp.idKontak);
-      setDoc(
-        kontakRef,
-        {
-          Aktif: true,
-        },
-        { merge: true }
-      );
+      // menambahkan group Collection messageSentBy
+      const kontakDoc = doc(db, "kontak", MyApp.idKontak);
+      const messageSnap = doc(kontakDoc, "messageSentBy", userId);
+      setDoc(messageSnap, {
+        dateSend: getDateToday(),
+        product: MyApp.produk,
+        nomor: MyApp.nomor,
+      });
+      // mengganti status nomor aktif : true
+      setDoc(kontakDoc, { Aktif: true }, { merge: true });
       console.log(MyApp.nomor + " : { aktif: true }");
       idCount.innerHTML = count++ + "/50";
     }
-  } else {
-    // User is signed out
-    // ...
   }
 });
