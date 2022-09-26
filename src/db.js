@@ -10,6 +10,7 @@ import {
   doc,
   setDoc,
   addDoc,
+  collectionGroup,
 } from "firebase/firestore";
 
 import { async } from "@firebase/util";
@@ -21,6 +22,24 @@ onAuthStateChanged(auth, (user) => {
   //Autentikasi User
   if (user) {
     const db = getFirestore(app);
+
+    // Playground doang ini mah
+    function playGround() {}
+
+    playGround();
+
+    //mengambil data hari ini
+    function getDateToday() {
+      var today = new Date();
+      var dd = String(today.getDate()).padStart(2, "0");
+      var mm = String(today.getMonth() + 1).padStart(2, "0"); //January is 0!
+      var yyyy = today.getFullYear();
+
+      today = dd + "/" + mm + "/" + yyyy;
+      return today;
+    }
+
+    getDateToday();
 
     // Cari nomor yang belum di gunakan di dtabase
     function randNomor() {
@@ -40,6 +59,7 @@ onAuthStateChanged(auth, (user) => {
     function pilihProduk() {
       const selectProduk = document.getElementById("selectProduk");
       getScript(selectProduk.value);
+      MyApp.produk = selectProduk.value;
     }
 
     // mengambil select produk dari database
@@ -74,13 +94,6 @@ onAuthStateChanged(auth, (user) => {
       });
     }
 
-    async function testLog() {
-      const docRef = doc(db, "collection", "document");
-      const docSnap = await getDoc(docRef);
-      const data = docSnap.data();
-    }
-    testLog();
-
     // Setting tag
     const tagElement = document.getElementById("tag");
 
@@ -99,53 +112,54 @@ onAuthStateChanged(auth, (user) => {
     btnKlik.addEventListener("click", getRandNomor);
 
     async function getRandNomor() {
-      const docRef = doc(db, "kontak", "nomor");
-      const docSnap = await getDoc(docRef);
       const nomor = randNomor();
 
-      if (docSnap.data().hasOwnProperty(nomor)) {
-        getRandNomor();
-      } else {
-        console.log(`Nomor ${nomor} Belum di pakai`);
-      }
+      //cari apakah nomor aktif atau tidak
+      const q = query(collection(db, "kontak"), where("nomor", "!=", null));
+
+      const querySnapshot = await getDocs(q);
+      querySnapshot.forEach((doc) => {
+        var allNomor = doc.data().nomor;
+        if (nomor == allNomor) {
+          getRandNomor();
+        }
+      });
       var tag = getTag();
       console.log(`nomor ${nomor} disimpan Di Database `);
       var link = `http://wa.me/${[nomor]}` + `/?text=${MyApp.script}${tag}`;
-      //  window.location = link;
-      console.log(link);
+      window.location = link;
+      //   console.log(link);
       var userId = user.uid;
-      const kontakRef = doc(db, "kontak", "nomor");
-      setDoc(
-        kontakRef,
-        {
-          [nomor]: {
-            aktif: false,
-            dateSend: Date.now(),
-            MessageSentBy: userId,
-          },
-        },
-        { merge: true }
-      );
+      try {
+        const docRef = await addDoc(collection(db, "kontak"), {
+          nomor: nomor,
+          dateSend: getDateToday(),
+          messageSentBy: userId,
+          product: MyApp.produk,
+          Aktif: false,
+        });
+        console.log("Document written with ID: ", docRef.id);
+        MyApp.idKontak = docRef.id;
+      } catch (e) {
+        console.error("Error adding document: ", e);
+      }
+
       MyApp.nomor = nomor;
     }
 
     // mengganti status nomor aktif : true
+    var count = 1;
     const idCount = document.getElementById("count");
     idCount.addEventListener("click", gantiAktif);
-    let count = 1;
     function gantiAktif() {
-      const kontakRef = doc(db, "kontak", "nomor");
+      const kontakRef = doc(db, "kontak", MyApp.idKontak);
       setDoc(
         kontakRef,
         {
-          [MyApp.nomor]: {
-            aktif: true,
-            dateSend: Date.now(),
-          },
+          Aktif: true,
         },
         { merge: true }
       );
-
       console.log(MyApp.nomor + " : { aktif: true }");
       idCount.innerHTML = count++ + "/50";
     }
