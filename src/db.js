@@ -78,10 +78,6 @@ onAuthStateChanged(auth, (user) => {
       const docRef = doc(db, "collection", "document");
       const docSnap = await getDoc(docRef);
       const data = docSnap.data();
-      function myFunction(items, index) {
-        console.log(index);
-      }
-      data.forEach(myFunction);
     }
     testLog();
 
