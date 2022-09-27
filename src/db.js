@@ -1,5 +1,4 @@
 import { app } from "./index.js";
-
 import {
   getFirestore,
   collection,
@@ -10,23 +9,16 @@ import {
   doc,
   setDoc,
   addDoc,
-  collectionGroup,
 } from "firebase/firestore";
-
 import { async } from "@firebase/util";
-
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 
-const auth = getAuth();
+const auth = getAuth(app);
 onAuthStateChanged(auth, (user) => {
   //Autentikasi User
   if (user) {
     const db = getFirestore(app);
     var userId = user.uid;
-    // Playground doang ini mah
-    async function playGround() {}
-
-    playGround();
 
     //mengambil data hari ini
     function getDateToday() {
@@ -95,7 +87,29 @@ onAuthStateChanged(auth, (user) => {
     }
 
     // Setting tag
+    var MyApp = {};
     const tagElement = document.getElementById("tag");
+    tagElement.addEventListener("change", tagDiganti);
+    async function tagDiganti() {
+      const docRef = doc(db, "tag", tagElement.value);
+      const docSnap = await getDoc(docRef);
+      const dataTag = docSnap.data();
+
+      if (docSnap.exists() && dataTag.produk == MyApp.produk) {
+        MyApp.sentAmount = dataTag.sentAmount;
+        getTagCount(dataTag.sentAmount);
+      } else {
+        await setDoc(doc(db, "tag", tagElement.value), {
+          produk: MyApp.produk,
+          sentAmount: 0,
+          sentBy: userId,
+        });
+        tagDiganti();
+      }
+    }
+    function getTagCount(data) {
+      idCount.innerHTML = `${data}/50`;
+    }
 
     function getTag() {
       var tag = tagElement.value;
@@ -107,7 +121,7 @@ onAuthStateChanged(auth, (user) => {
     }
 
     // ubah link saat Tombol Send di tekan
-    var MyApp = {};
+
     const btnKlik = document.querySelector("#klik");
     btnKlik.addEventListener("click", getRandNomor);
 
@@ -127,8 +141,8 @@ onAuthStateChanged(auth, (user) => {
       var tag = getTag();
       console.log(`nomor ${nomor} disimpan Di Database `);
       var link = `http://wa.me/${[nomor]}` + `/?text=${MyApp.script}${tag}`;
-      //   window.location = link;
-      console.log(link);
+      window.location = link;
+      //  console.log(link);
 
       try {
         const docRef = await addDoc(collection(db, "kontak"), {
@@ -145,7 +159,6 @@ onAuthStateChanged(auth, (user) => {
       MyApp.nomor = nomor;
     }
 
-    var count = 1;
     const idCount = document.getElementById("count");
     idCount.addEventListener("click", gantiAktif);
     function gantiAktif() {
@@ -160,7 +173,12 @@ onAuthStateChanged(auth, (user) => {
       // mengganti status nomor aktif : true
       setDoc(kontakDoc, { Aktif: true }, { merge: true });
       console.log(MyApp.nomor + " : { aktif: true }");
-      idCount.innerHTML = count++ + "/50";
+      setDoc(doc(db, "tag", tagElement.value), {
+        produk: MyApp.produk,
+        sentAmount: MyApp.sentAmount + 1,
+        sentBy: userId,
+      });
+      tagDiganti();
     }
   }
 });
