@@ -10,175 +10,37 @@ import {
   setDoc,
   addDoc,
 } from "firebase/firestore";
-import { async } from "@firebase/util";
-import { getAuth, onAuthStateChanged } from "firebase/auth";
+import {
+  getAuth,
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  signOut,
+} from "firebase/auth";
 
 const auth = getAuth(app);
 onAuthStateChanged(auth, (user) => {
   //Autentikasi User
   if (user) {
     const db = getFirestore(app);
-    var userId = user.uid;
-
-    //mengambil data hari ini
-    function getDateToday() {
-      var today = new Date();
-      var dd = String(today.getDate()).padStart(2, "0");
-      var mm = String(today.getMonth() + 1).padStart(2, "0"); //January is 0!
-      var yyyy = today.getFullYear();
-
-      today = dd + "/" + mm + "/" + yyyy;
-      return today;
-    }
-
-    getDateToday();
-
-    // Cari nomor yang belum di gunakan di dtabase
-    function randNomor() {
-      const items = [17, 78, 53, 11, 21, 12, 13, 23, 22, 56, 57];
-      const max = 99999999;
-      const min = 1000000;
-      const ranNom = Math.floor(Math.random() * (max - min + 1)) + min;
-      const oper = items[Math.floor(Math.random() * items.length)];
-      return `628${oper}${ranNom}`;
-    }
-
-    // Memilih Produk
-    let produkName = "";
-    const selectProduk = document.getElementById("selectProduk");
-    selectProduk.addEventListener("change", pilihProduk);
-
-    function pilihProduk() {
-      const selectProduk = document.getElementById("selectProduk");
-      getScript(selectProduk.value);
-      MyApp.produk = selectProduk.value;
-    }
-
-    // mengambil select produk dari database
-    async function getSelectProduk() {
-      const q = query(collection(db, "broadcast"), where("produk", "!=", null));
-
-      const querySnapshot = await getDocs(q);
-      querySnapshot.forEach((doc) => {
-        // doc.data() is never undefined for query doc snapshots
-        var produk = doc.data().produk;
-        produkName += `<option value="${produk}">${produk}</option>`;
-      });
-
-      const selectProduk = document.getElementById("selectProduk");
-      selectProduk.innerHTML = produkName;
-    }
-    getSelectProduk();
-
-    //menampilkan Script Text
-    async function getScript(produkName) {
-      const q = query(
-        collection(db, "broadcast"),
-        where("produk", "==", produkName)
-      );
-
-      const querySnapshot = await getDocs(q);
-      querySnapshot.forEach((doc) => {
-        var script = doc.data().textScript;
-        const textScript = document.getElementById("textScript");
-        textScript.innerHTML = decodeURIComponent(script);
-        MyApp.script = script;
-      });
-    }
-
-    // Setting tag
-    var MyApp = {};
-    const tagElement = document.getElementById("tag");
-    tagElement.addEventListener("change", tagDiganti);
-    async function tagDiganti() {
-      const docRef = doc(db, "tag", tagElement.value);
-      const docSnap = await getDoc(docRef);
-      const dataTag = docSnap.data();
-
-      if (docSnap.exists() && dataTag.produk == MyApp.produk) {
-        MyApp.sentAmount = dataTag.sentAmount;
-        getTagCount(dataTag.sentAmount);
+    async function getUserdata() {
+      const userDoc = await getDoc(doc(db, "users", user.uid));
+      const dataUser = userDoc.data();
+      if (dataUser.role != "admin") {
       } else {
-        await setDoc(doc(db, "tag", tagElement.value), {
-          produk: MyApp.produk,
-          sentAmount: 0,
-          sentBy: userId,
-        });
-        tagDiganti();
+        window.location = "app";
       }
     }
-    function getTagCount(data) {
-      idCount.innerHTML = `${data}/50`;
-    }
-
-    function getTag() {
-      var tag = tagElement.value;
-      if (tag != null) {
-        return tag;
-      } else {
-        return null;
-      }
-    }
-
-    // ubah link saat Tombol Send di tekan
-
-    const btnKlik = document.querySelector("#klik");
-    btnKlik.addEventListener("click", getRandNomor);
-
-    async function getRandNomor() {
-      const nomor = randNomor();
-
-      //cari apakah nomor aktif atau tidak
-      const q = query(collection(db, "kontak"), where("nomor", "!=", null));
-
-      const querySnapshot = await getDocs(q);
-      querySnapshot.forEach((doc) => {
-        var allNomor = doc.data().nomor;
-        if (nomor == allNomor) {
-          getRandNomor();
-        }
-      });
-      var tag = getTag();
-      console.log(`nomor ${nomor} disimpan Di Database `);
-      var link = `http://wa.me/${[nomor]}` + `/?text=${MyApp.script}${tag}`;
-      window.location = link;
-      //  console.log(link);
-
-      try {
-        const docRef = await addDoc(collection(db, "kontak"), {
-          nomor: nomor,
-
-          Aktif: false,
-        });
-        console.log("Document written with ID: ", docRef.id);
-        MyApp.idKontak = docRef.id;
-      } catch (e) {
-        console.error("Error adding document: ", e);
-      }
-
-      MyApp.nomor = nomor;
-    }
-
-    const idCount = document.getElementById("count");
-    idCount.addEventListener("click", gantiAktif);
-    function gantiAktif() {
-      // menambahkan group Collection messageSentBy
-      const kontakDoc = doc(db, "kontak", MyApp.idKontak);
-      const messageSnap = doc(kontakDoc, "messageSentBy", userId);
-      setDoc(messageSnap, {
-        dateSend: getDateToday(),
-        product: MyApp.produk,
-        nomor: MyApp.nomor,
-      });
-      // mengganti status nomor aktif : true
-      setDoc(kontakDoc, { Aktif: true }, { merge: true });
-      console.log(MyApp.nomor + " : { aktif: true }");
-      setDoc(doc(db, "tag", tagElement.value), {
-        produk: MyApp.produk,
-        sentAmount: MyApp.sentAmount + 1,
-        sentBy: userId,
-      });
-      tagDiganti();
-    }
+    getUserdata();
+  } else {
+    load("login.html", body);
   }
 });
+
+const body = document.getElementById("body");
+function load(url, element) {
+  const req = new XMLHttpRequest();
+  req.open("GET", url, false);
+  req.send(null);
+
+  element.innerHTML = req.responseText;
+}
